@@ -101,7 +101,7 @@ def process_report(report_type, date_input=None, file_path='data.txt'):
     # Print table header
     print(f"\nReport for {month} {year}:\n")
     print("    Date    |   Type  | Amount |  NetBalance ")
-    print("--------------------------------------------------------------------------")
+    print("---------------------------------------------")
 
     # Display the filtered transactions in a table format
     for entry in filtered_entries:
@@ -111,7 +111,7 @@ def process_report(report_type, date_input=None, file_path='data.txt'):
     investments = final_net_balance * 0.50
     spending_money = final_net_balance * 0.50
 
-    print("--------------------------------------------------------------------------")
+    print("---------------------------------------------")
     print(f"Investments: {investments:.2f}  |  Spending Money: {spending_money:.2f}\n")
 
 def printEr(err):
