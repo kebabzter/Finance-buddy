@@ -1,5 +1,11 @@
 import datetime
 import os
+import tkinter as tk
+from tkinter import filedialog
+import csv
+
+root = tk.Tk()
+root.withdraw()
 
 def ensure_file_exists(file_path='data.txt'):
     """Check if the file exists, and create it if it doesn't."""
@@ -7,6 +13,34 @@ def ensure_file_exists(file_path='data.txt'):
         with open(file_path, 'w') as f:
             pass  # Create an empty file
 
+def select_csv_file():
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    file_path = filedialog.askopenfilename(
+        title="Select a CSV file",
+        filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+    )
+    return file_path
+
+# Process the CSV file
+def process_csv(file_path):
+    with open(file_path, 'r') as csvfile:
+        csv_reader = csv.DictReader(csvfile, delimiter=';') 
+
+        printSuccess("Processing CSV file...")
+        for row in csv_reader:
+            date = row["Date"]
+            debit_credit = row["Debit/credit"]
+            amount = row["Amount (EUR)"]
+
+            #Fixes date in correct format
+            year = date[:4] 
+            month = date[4:6]  
+            day = date[6:] 
+
+            date = f"{day}:{month}:{year}"
+            
+            process_transaction(date, "income" if debit_credit.lower() == "credit" else "expense", float(amount.replace(',', '.')) )
 
 def process_transaction(date, trans_type, amount, file_path='data.txt'):
     # Open the file and read the last line to get the current index and netbalance
@@ -22,7 +56,7 @@ def process_transaction(date, trans_type, amount, file_path='data.txt'):
         last_line = lines[-1].strip()
         last_entry = last_line.split()
         index = int(last_entry[0]) + 1  # Increment index for new entry
-        net_balance = int(last_entry[4])  # Get the last netbalance value
+        net_balance = float(last_entry[4])  # Get the last netbalance value
     
     # Calculate the new net balance based on the transaction type
     if trans_type.lower() == "income":
@@ -37,7 +71,7 @@ def process_transaction(date, trans_type, amount, file_path='data.txt'):
         date = datetime.datetime.now().strftime("%d:%m:%Y");
     
     # Create the new line to be appended
-    new_line = f"{index} {date} {trans_type} {amount} {net_balance}\n"
+    new_line = f"{index} {date} {trans_type} {round(amount,2)} {round(net_balance, 2)}\n"
 
     # Append the new transaction to the file
     with open(file_path, 'a') as f:
@@ -67,15 +101,18 @@ def process_report(report_type, date_input=None, file_path='data.txt'):
     # Initialize variables for calculating investments and spending money
     filtered_entries = []
     final_net_balance = 0
-
+    net_balance = 0
     for line in lines:
         # Split each line and extract the date and netbalance
         parts = line.split()
         if len(parts) == 5:
             date = parts[1].strip()  # Date in DD:MM:YYYY format, strip any extra spaces
             trans_type = parts[2].lower()  # Transaction type: income/expense
-            amount = int(parts[3])  # Transaction amount
-            net_balance = int(parts[4])  # Current netbalance
+            amount = float(parts[3])  # Transaction amount
+            if trans_type == "income":
+                net_balance += amount
+            else:
+                net_balance -= amount
 
             # Check if the entry matches the month and year
             try:
@@ -89,8 +126,8 @@ def process_report(report_type, date_input=None, file_path='data.txt'):
             entry_year = entry_date.year
 
             if entry_month.lower() == month.lower() and entry_year == year:
-                filtered_entries.append((date, trans_type, amount, net_balance))
-                final_net_balance = net_balance  # Keep updating the latest netbalance
+                filtered_entries.append((date, trans_type, "€" + str(amount), "€" + str(round(net_balance, 2))))
+                final_net_balance = net_balance
 
     # If there are no entries for the specified month/year, notify the user
     if not filtered_entries:
@@ -108,6 +145,7 @@ def process_report(report_type, date_input=None, file_path='data.txt'):
         print(f" {entry[0]} | {entry[1].capitalize()}  | {entry[2]} | {entry[3]}")
 
     # Calculate and display Investments and Spending Money
+    print()
     investments = final_net_balance * 0.50
     spending_money = final_net_balance * 0.50
 
@@ -132,7 +170,7 @@ def main():
     ensure_file_exists();
     print("Enter 'Input / I' to start entering transactions, 'Report / R' for reports 'Back / B' to go back once in entering mode, or 'Quit / Q' to exit.")
     while True:
-        command = input("Enter command: ").strip().lower()
+        command = input("Enter command:").strip().lower()
         
         # Handle combinations of commands like 'r c' for 'report current'
         command_parts = command.split()
@@ -173,12 +211,12 @@ def main():
                         try:
                             date = parts[0]  # Expected format: DD:MM:YYYY
                             trans_type = parts[1].lower()  # 'income' or 'expense'
-                            amount = int(parts[2])  # Ensure any extra spaces are removed and convert to integer
+                            amount = float(parts[2])  # Ensure any extra spaces are removed and convert to integer
 
                             process_transaction(date, trans_type, amount)
                         except ValueError:
                             
-                            printEr("Invalid amount. Please enter a valid integer.")
+                            printEr("Invalid amount. Please enter a valid number.")
                     else:
                         printEr("Invalid format. Please enter the transaction as: DD:MM:YYYY Type Amount")
         
@@ -203,9 +241,18 @@ def main():
                     else:
                         process_report("monthyear", report_input)  # Process the report for a specific month/year
         
-        else:
-            printEr("Invalid command. Please enter 'Input / I', 'Report / R', or 'Quit / Q'.")
+        elif "ibs" in command_parts or "import" in command_parts:
+            file_path = select_csv_file()
+            if file_path:
+                try:
+                    process_csv(file_path)
+                except Exception as e:
+                    printEr(f"Error processing the file: {e}")
+            else:
+                printEr("No file selected.")
 
+        else:
+            printEr("Invalid command. Please enter 'Input / I', 'Report / R', 'Import / ibs' or 'Quit / Q'.")
 
 if __name__ == "__main__":
     main()
