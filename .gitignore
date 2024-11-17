@@ -1,2 +1,2 @@
 build
-dist/data.txt
+*.txt
