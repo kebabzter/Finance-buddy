@@ -26,9 +26,10 @@ def select_csv_file():
 def process_csv(file_path):
     with open(file_path, 'r') as csvfile:
         csv_reader = csv.DictReader(csvfile, delimiter=';') 
+        rows = list(csv_reader)
 
         printSuccess("Processing CSV file...")
-        for row in csv_reader:
+        for row in reversed(rows):
             date = row["Date"]
             debit_credit = row["Debit/credit"]
             amount = row["Amount (EUR)"]
@@ -109,12 +110,7 @@ def process_report(report_type, date_input=None, file_path='data.txt'):
             date = parts[1].strip()  # Date in DD:MM:YYYY format, strip any extra spaces
             trans_type = parts[2].lower()  # Transaction type: income/expense
             amount = float(parts[3])  # Transaction amount
-            if trans_type == "income":
-                net_balance += amount
-            else:
-                net_balance -= amount
 
-            # Check if the entry matches the month and year
             try:
                 # Parse the date with DD:MM:YYYY format
                 entry_date = datetime.datetime.strptime(date, "%d:%m:%Y").date()
@@ -124,6 +120,16 @@ def process_report(report_type, date_input=None, file_path='data.txt'):
 
             entry_month = entry_date.strftime("%B")
             entry_year = entry_date.year
+
+            if entry_month != month or entry_year != year:
+                continue
+
+            if trans_type == "income":
+                net_balance += amount
+            else:
+                net_balance -= amount
+
+            # Check if the entry matches the month and year
 
             if entry_month.lower() == month.lower() and entry_year == year:
                 filtered_entries.append((date, trans_type, "€" + str(amount), "€" + str(round(net_balance, 2))))
@@ -184,8 +190,8 @@ def main():
             if len(command_parts) == 4:
                 try:
                     date = command_parts[1]  # Expected format: DD:MM:YYYY
-                    trans_type = command_parts[2].lower()  # 'income' or 'expense'
-                    amount = int(command_parts[3])  # Convert amount to integer
+                    trans_type = command_parts[2].lower()  # 'income' or 'expense's
+                    amount = float(command_parts[3])  # Convert amount to integer
                     
                     process_transaction(date, trans_type, amount)
                 except ValueError:
